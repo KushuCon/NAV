@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PF Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f111b;--panel:#161927;--line:#252a3f;--tx:#ecebf4;--mu:#8a8fa8;--up:#5eead4;--dn:#fb7185;--ac:#a5b4fc}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:radial-gradient(900px 500px at 15% -10%,#1d2140 0,transparent 60%),var(--bg);color:var(--tx);font:400 14px/1.5 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:28px 18px 60px}
+.wrap{max-width:1040px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end;margin-bottom:18px}
+h1{font-size:15px;font-weight:500;color:var(--mu);margin:0 0 6px}
+.big{font-size:clamp(32px,6vw,52px);font-weight:300;letter-spacing:-.02em;line-height:1.1}
+.chg{font-size:14px;margin-top:6px}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,input{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);padding:8px 14px;border-radius:10px;cursor:pointer}
+button:hover{border-color:var(--ac)}
+button.pri{background:var(--ac);color:#12142a;border-color:var(--ac);font-weight:500}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+input[type=date]{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color-scheme:dark}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 6px 6px;position:relative}
+svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.tip{position:absolute;pointer-events:none;background:#0b0d16;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;transform:translate(-50%,-110%);white-space:nowrap;display:none}
+.empty{padding:70px 20px;text-align:center;color:var(--mu)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0 26px}
+.stat{border-left:2px solid var(--line);padding:2px 0 2px 14px}
+.stat small{color:var(--mu);display:block}
+.stat b{font-weight:500;font-size:18px}
+.tablewrap{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+table{border-collapse:collapse;width:100%}
+td.nm{white-space:normal;line-height:1.35}
+@media (max-width:760px){.tablewrap{overflow-x:auto}table{min-width:720px}}
+th{font-weight:400;color:var(--mu);text-align:right;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:16px}
+tr:last-child td{border-bottom:0}
+tfoot td{font-weight:500;border-top:1px solid var(--line);padding:12px 10px}
+td input{width:100%;min-width:70px;background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 8px;text-align:right}
+td input.txt{text-align:left;min-width:150px}
+td input[readonly]{pointer-events:none}
+td input.nav{border-color:var(--line);background:#0f111b;color:var(--ac)}
+.del{display:none}.edit .del{display:table-cell}
+.edit td input:not(.nav){border-color:var(--line)}
+.del button{padding:2px 9px}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;color:var(--mu)}
+details{margin-top:22px;color:var(--mu)}
+summary{cursor:pointer}
+.hist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.hist span{border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;color:var(--tx)}
+.hist button{border:0;background:none;padding:0 6px;color:var(--mu)}
+.note{color:var(--mu);font-size:12px;margin-top:10px}
+@media (prefers-reduced-motion:no-preference){.line{stroke-dasharray:3000;stroke-dashoffset:3000;animation:d 1.4s ease-out forwards}@keyframes d{to{stroke-dashoffset:0}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Portfolio value</h1>
+      <div class="big" id="total">-</div>
+      <div class="chg" id="chg"></div>
+    </div>
+    <div class="btns">
+      <input type="date" id="date" aria-label="Snapshot date">
+      <button class="pri" id="snap">Save snapshot</button>
+    </div>
+  </header>
+
+  <div class="chart" id="chart"></div>
+  <div class="stats" id="stats"></div>
+
+  <div class="sec">
+    <span>Pick date, update NAVs, press Save snapshot</span>
+    <div class="btns"><button id="addf" hidden>Add fund</button><button id="editb">Edit funds</button></div>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Fund name</th><th>Invested (₹)</th><th>Avg NAV</th><th>Units</th><th>Current NAV</th><th>Current value (₹)</th><th>P&amp;L (₹)</th><th>P&amp;L (%)</th><th class="del"></th></tr></thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr><td>Total</td><td id="tInv"></td><td></td><td></td><td></td><td id="tCur"></td><td id="tPl"></td><td id="tPp"></td><td class="del"></td></tr></tfoot>
+    </table>
+  </div>
+
+  <details>
+    <summary>Saved snapshots and backup</summary>
+    <div class="hist" id="hist"></div>
+    <div class="btns" style="margin-top:12px"><button id="exp">Export backup</button><button id="imp">Import backup</button><input type="file" id="file" accept=".json" hidden></div>
+    <div class="note">Data is saved in this browser only (localStorage). Clearing browser data erases it, so export a backup now and then.</div>
+  </details>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), KEY='pf-tracker-v1';
+const seed=[["Bandhan Small Cap",1099,52.186,21.077,56.09],["Bank of India Manufacturing & Infrastructure Fund",124993.75,78.13,1599.818,77.85],["Edelweiss US Technology Equity Fund of Fund",2000,39.0211,51.428,42.54],["HDFC Housing Opportunities",50000,21.257,5000,22.17],["HSBC Midcap Fund",124993.75,529.5676,236.03,513.13],["Invesco India Small Cap Fund",49997.5,47.25,1058.148,52.22],["Invesco India Mid Cap Fund",49997.5,193.25,258.719,229.39]].map(([name,inv,avg,units,nav])=>({name,inv,avg,units,nav}));
+let S=null; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.funds)) S={funds:seed,snaps:[]};
+let edit=false;
+const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const inr=(n,d=2)=>'₹'+Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sgn=n=>(n<0?'-':'+')+inr(n);
+const pct=n=>(n<0?'':'+')+n.toFixed(2)+'%';
+const cls=n=>n<0?'dn':'up';
+const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'});
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+$('#date').value=new Date().toLocaleDateString('en-CA');
+
+const totals=()=>S.funds.reduce((a,f)=>{a.inv+=f.inv;a.cur+=f.units*f.nav;return a},{inv:0,cur:0});
+function upsert(){
+  const d=$('#date').value; if(!d) return;
+  const v=+totals().cur.toFixed(2), i=S.snaps.findIndex(s=>s.date===d);
+  if(i>=0) S.snaps[i].value=v; else S.snaps.push({date:d,value:v});
+  S.snaps.sort((a,b)=>a.date<b.date?-1:1); persist();
+}
+
+function buildTable(){
+  $('#rows').innerHTML=S.funds.map((f,i)=>`<tr data-i="${i}">
+    ${edit?`<td><input class="txt" data-k="name" value="${esc(f.name)}"></td>
+    <td><input data-k="inv" type="number" step="any" value="${f.inv}"></td>
+    <td><input data-k="avg" type="number" step="any" value="${f.avg}"></td>
+    <td><input data-k="units" type="number" step="any" value="${f.units}"></td>`
+    :`<td class="nm">${esc(f.name)}</td><td>${inr(f.inv)}</td><td>${f.avg}</td><td>${f.units}</td>`}
+    <td><input class="nav" data-k="nav" type="number" step="any" value="${f.nav}" aria-label="Current NAV"></td>
+    <td class="cur"></td><td class="pl"></td><td class="pp"></td>
+    <td class="del"><button data-del="${i}" aria-label="Remove fund">×</button></td></tr>`).join('');
+  document.body.classList.toggle('edit',edit);
+  $('#addf').hidden=!edit; $('#editb').textContent=edit?'Done':'Edit funds';
+  $('#rows').querySelectorAll('input:not(.nav)').forEach(e=>e.readOnly=!edit);
+  calc();
+}
+
+function calc(){
+  S.funds.forEach((f,i)=>{
+    const tr=$('#rows').children[i]; if(!tr) return;
+    const cur=f.units*f.nav, pl=cur-f.inv, pp=f.inv?pl/f.inv*100:0;
+    tr.querySelector('.cur').textContent=inr(cur);
+    const a=tr.querySelector('.pl'), b=tr.querySelector('.pp');
+    a.textContent=sgn(pl); b.textContent=pct(pp); a.className='pl '+cls(pl); b.className='pp '+cls(pl);
+  });
+  const t=totals(), pl=t.cur-t.inv, pp=t.inv?pl/t.inv*100:0;
+  $('#tInv').textContent=inr(t.inv); $('#tCur').textContent=inr(t.cur);
+  $('#tPl').textContent=sgn(pl); $('#tPp').textContent=pct(pp);
+  $('#tPl').className=$('#tPp').className=cls(pl);
+  $('#total').textContent=inr(t.cur);
+  const sn=S.snaps, cd=$('#date').value;
+  const prev=[...sn].reverse().find(s=>s.date<cd);
+  $('#chg').innerHTML=prev?`<span class="${cls(t.cur-prev.value)}">${sgn(t.cur-prev.value)} (${pct((t.cur-prev.value)/prev.value*100)})</span> <span style="color:var(--mu)">since ${fd(prev.date)}</span>`:'';
+  const peak=sn.length?sn.reduce((m,s)=>s.value>m.value?s:m):null;
+  $('#stats').innerHTML=`
+    <div class="stat"><small>Invested</small><b>${inr(t.inv)}</b></div>
+    <div class="stat"><small>Total P&amp;L</small><b class="${cls(pl)}">${sgn(pl)} (${pct(pp)})</b></div>
+    <div class="stat"><small>Peak value</small><b>${peak?inr(peak.value):'-'}</b>${peak?`<small>${fd(peak.date)}</small>`:''}</div>`;
+  drawChart(); drawHist();
+}
+
+function drawHist(){
+  $('#hist').innerHTML=S.snaps.length?S.snaps.map(s=>`<span>${fd(s.date)} · ${inr(s.value,0)}<button data-sd="${s.date}" aria-label="Delete snapshot">×</button></span>`).join(''):'<span style="border:0;color:var(--mu)">No snapshots yet</span>';
+}
+
+function drawChart(){
+  const el=$('#chart'), p=[...S.snaps];
+  if(!p.length){el.innerHTML='<div class="empty">Change a NAV or press Save snapshot to start the chart.</div>';return}
+  const W=900,H=340,L=14,R=84,T=34,B=30, cw=W-L-R, ch=H-T-B;
+  const vals=p.map(s=>s.value), mx=Math.max(...vals), mn=Math.min(...vals), rg=mx-mn||mx*0.02||1;
+  const hi=mx+rg*0.06, lo=mn-rg*0.25;               // tight window so the peak sits at the top and swings are visible
+  const t0=new Date(p[0].date).getTime(), t1=new Date(p[p.length-1].date).getTime();
+  const X=s=>L+(t1===t0?cw/2:(new Date(s.date).getTime()-t0)/(t1-t0)*cw);
+  const Y=v=>T+(hi-v)/(hi-lo)*ch;
+  const pts=p.map(s=>[X(s),Y(s.value)]);
+  let d=`M${pts[0][0]},${pts[0][1]}`;
+  for(let i=1;i<pts.length;i++){const[a,b]=pts[i-1],[c,e]=pts[i],m=(a+c)/2;d+=` C${m},${b} ${m},${e} ${c},${e}`}
+  const last=pts[pts.length-1], first=pts[0], up=p[p.length-1].value>=p[0].value;
+  const area=d+` L${last[0]},${T+ch} L${first[0]},${T+ch} Z`;
+  let grid='';
+  for(let i=0;i<4;i++){const v=hi-(hi-lo)*i/3, y=Y(v);grid+=`<line x1="${L}" x2="${L+cw}" y1="${y}" y2="${y}" stroke="#252a3f" stroke-width="1"/><text x="${W-R+10}" y="${y+4}" fill="#8a8fa8" font-size="12">${(v/1e5).toFixed(2)}L</text>`}
+  const pk=p.reduce((m,s)=>s.value>m.value?s:m), px=X(pk), py=Y(pk.value);
+  const xl=[p[0],p[Math.floor((p.length-1)/2)],p[p.length-1]].filter((s,i,a)=>a.indexOf(s)===i).map((s,i,a)=>`<text x="${X(s)}" y="${H-8}" fill="#8a8fa8" font-size="12" text-anchor="${s===p[0]&&a.length>1?'start':s===p[p.length-1]&&a.length>1?'end':'middle'}">${fd(s.date)}</text>`).join('');
+  const col=up?'#5eead4':'#fb7185';
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="color:${col}" role="img" aria-label="Portfolio value chart">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <line x1="${L}" x2="${L+cw}" y1="${py}" y2="${py}" stroke="#a5b4fc" stroke-dasharray="4 5" opacity=".55"/>
+    <text x="${Math.min(Math.max(px,L+60),L+cw-60)}" y="${py-9}" fill="#a5b4fc" font-size="12" text-anchor="middle">Peak ${inr(pk.value,0)}</text>
+    ${p.length>1?`<path d="${area}" fill="url(#g)"/><path class="line" d="${d}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+    <circle cx="${last[0]}" cy="${last[1]}" r="5" fill="currentColor"/><circle cx="${last[0]}" cy="${last[1]}" r="11" fill="currentColor" opacity=".18"/>
+    <circle id="hc" r="5" fill="#fff" style="display:none"/>
+    <line id="hl" y1="${T}" y2="${T+ch}" stroke="#8a8fa8" stroke-dasharray="2 4" style="display:none"/>
+    ${xl}
+    <rect x="${L}" y="${T}" width="${cw}" height="${ch}" fill="transparent" id="hit"/></svg><div class="tip" id="tip"></div>`;
+  const svg=el.querySelector('svg'), tip=$('#tip'), hc=$('#hc'), hl=$('#hl');
+  const move=e=>{
+    const r=svg.getBoundingClientRect(), k=W/r.width, x=((e.touches?e.touches[0].clientX:e.clientX)-r.left)*k;
+    let bi=0; pts.forEach((q,i)=>{if(Math.abs(q[0]-x)<Math.abs(pts[bi][0]-x))bi=i});
+    const q=pts[bi], s=p[bi];
+    hc.setAttribute('cx',q[0]);hc.setAttribute('cy',q[1]);hl.setAttribute('x1',q[0]);hl.setAttribute('x2',q[0]);
+    hc.style.display=hl.style.display='';
+    tip.style.display='block';tip.style.left=(q[0]/k+svg.parentNode.offsetLeft*0)+'px';tip.style.top=(q[1]/k+14)+'px';
+    tip.innerHTML=`${fd(s.date)}<br><b>${inr(s.value)}</b>`;
+  };
+  const out=()=>{hc.style.display=hl.style.display='none';tip.style.display='none'};
+  const hit=$('#hit'); hit.addEventListener('mousemove',move);hit.addEventListener('touchmove',move,{passive:true});hit.addEventListener('touchstart',move,{passive:true});hit.addEventListener('mouseleave',out);hit.addEventListener('touchend',out);
+}
+
+$('#rows').addEventListener('input',e=>{
+  const tr=e.target.closest('tr'), k=e.target.dataset.k; if(!tr||!k) return;
+  const f=S.funds[+tr.dataset.i]; f[k]=k==='name'?e.target.value:(parseFloat(e.target.value)||0);
+  persist(); calc();
+});
+$('#rows').addEventListener('click',e=>{
+  const b=e.target.closest('[data-del]'); if(!b) return;
+  if(confirm('Remove this fund?')){S.funds.splice(+b.dataset.del,1);persist();buildTable()}
+});
+$('#addf').onclick=()=>{S.funds.push({name:'New fund',inv:0,avg:0,units:0,nav:0});persist();buildTable()};
+$('#editb').onclick=()=>{edit=!edit;buildTable()};
+$('#snap').onclick=()=>{upsert();calc();const b=$('#snap');b.textContent='Saved ✓';setTimeout(()=>b.textContent='Save snapshot',1500)};
+$('#date').onchange=calc;
+$('#hist').addEventListener('click',e=>{const b=e.target.closest('[data-sd]');if(b){S.snaps=S.snaps.filter(s=>s.date!==b.dataset.sd);persist();calc()}});
+$('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='pf-backup-'+$('#date').value+'.json';a.click()};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!Array.isArray(j.funds)||!Array.isArray(j.snaps))throw 0;S=j;persist();buildTable()}catch(x){alert('Invalid backup file')}};r.readAsText(f)};
+buildTable();
+</script>
+</body>
+</html>
